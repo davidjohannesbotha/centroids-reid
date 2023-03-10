@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
     ### Build model
     model = CTLModel.load_from_checkpoint(cfg.MODEL.PRETRAIN_PATH)
-    use_cuda = True if torch.cuda.is_available() and cfg.GPU_IDS else False
+    use_cuda = True  # if torch.cuda.is_available() and cfg.GPU_IDS else False
 
     ### Inference
     log.info("Running inference")

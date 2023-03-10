@@ -9,6 +9,8 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision.datasets import ImageFolder
 from torchvision.datasets.folder import is_image_file
+import time
+import cv2 as cv
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 log = logging.getLogger(__name__)
@@ -96,18 +98,21 @@ def make_inference_data_loader(cfg, path, dataset_class):
         val_set,
         batch_size=cfg.TEST.IMS_PER_BATCH,
         shuffle=False,
-        num_workers=num_workers,
+        num_workers=1,
+        persistent_workers=True,
     )
     return val_loader
 
 
 def _inference(model, batch, use_cuda, normalize_with_bn=True):
     model.eval()
+
     with torch.no_grad():
-        data, _, filename = batch
-        _, global_feat = model.backbone(
-            data.cuda() if use_cuda else data
-        )
+        # data, _, filename = batch
+        data, filename = batch
+        # _, global_feat = model.backbone(data.cuda() if use_cuda else data)
+        _, global_feat = model.backbone(data if use_cuda else data)
+
         if normalize_with_bn:
             global_feat = model.bn(global_feat)
         return global_feat, filename
@@ -116,18 +121,85 @@ def _inference(model, batch, use_cuda, normalize_with_bn=True):
 def run_inference(model, val_loader, cfg, print_freq, use_cuda):
     embeddings = []
     paths = []
-    model = model.cuda() if use_cuda else model
+    device = torch.device("mps")
 
-    for pos, x in enumerate(val_loader):
-        if pos % print_freq == 0:
-            log.info(f"Number of processed images: {pos*cfg.TEST.IMS_PER_BATCH}")
-        embedding, path = _inference(model, x, use_cuda)
-        for vv, pp in zip(embedding, path):
-            paths.append(pp)
-            embeddings.append(vv.detach().cpu().numpy())
+    # print(torch.backends.mps.is_available())
+    # # this ensures that the current current PyTorch installation was built with MPS activated.
+    # print(torch.backends.mps.is_built())
+    # # model = model.cuda() if use_cuda else model
+    model = model.to(device)
+    # tx = time.time()
 
+    # pos=0
+    # t0 = time.time()
+    # x = next(iter(val_loader))
+    # print("time to load batch", time.time() - t0)
+    # # print(x)
+    # print("entered!")
+    # t1 = time.time()
+    # if pos % print_freq == 0:
+    #     log.info(f"Number of processed images: {pos*cfg.TEST.IMS_PER_BATCH}")
+    # embedding, path = _inference(model, x, use_cuda)
+    # for vv, pp in zip(embedding, path):
+    #     paths.append(pp)
+    #     embeddings.append(vv.detach().cpu().numpy())
+    # print("time for batch", time.time() - t1)
+    # print("time for full loop", time.time() - tx)
+    import torchvision.transforms as T
+
+    transform = T.Compose(
+        [
+            T.Resize([256, 128]),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            # normalize_transform
+        ]
+    )
+
+    for filename in os.scandir(
+        "/Users/davidbotha/NightWatch/centroids-reid/datasets/market1501//query"
+        # "/Users/davidbotha/NightWatch/centroids-reid/datasets/market1501/bounding_box_test"
+    ):
+        # print(filename.path)
+        if filename.is_file():
+            try:
+                image = transform(Image.open(filename.path))[None, :, :, :].to(device)
+            # print(image.shape)
+            # exit()
+            except:
+                pass
+
+            embedding, path = _inference(model, (image, filename.path), use_cuda)
+            # print(embedding, path)
+            for vv, pp in zip(embedding, path):
+                # print(filename.path)
+                # print(vv.detach().cpu().numpy())
+                paths.append(filename.path)
+                embeddings.append(vv.detach().cpu().numpy())
+
+    # for pos, x in enumerate(val_loader):
+
+    #     print("load time", time.time() - t0)
+
+    #     # print("entered!")
+    #     t1 = time.time()
+    #     if pos % print_freq == 0:
+    #         log.info(f"Number of processed images: {pos*cfg.TEST.IMS_PER_BATCH}")
+    #     embedding, path = _inference(model, x, use_cuda)
+    #     for vv, pp in zip(embedding, path):
+    #         paths.append(pp)
+    #         embeddings.append(vv.detach().cpu().numpy())
+    #     print("time for batch", time.time() - t1)
+    # print("time for full loop", time.time() - tx)
+
+    # t1 = time.time()
     embeddings = np.array(np.vstack(embeddings))
+    # print("time for emb", time.time() - t1)
+
+    # t1 = time.time()
     paths = np.array(paths)
+    # print("time for paths", time.time() - t1)
+
     return embeddings, paths
 
 

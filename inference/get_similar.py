@@ -19,6 +19,7 @@ from inference_utils import (
     make_inference_data_loader,
     run_inference,
 )
+import time
 
 ### Prepare logging
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
@@ -81,11 +82,13 @@ if __name__ == "__main__":
     ### Build model
     model = CTLModel.load_from_checkpoint(cfg.MODEL.PRETRAIN_PATH)
 
+    t2 = time.time()
     ### Inference
     log.info("Running inference")
     embeddings, paths = run_inference(
-        model, val_loader, cfg, print_freq=args.print_freq
+        model, val_loader, cfg, print_freq=args.print_freq, use_cuda=True
     )
+    print("time to complete inference", time.time() - t2)
 
     ### Load gallery data
     LOAD_PATH = Path(args.gallery_data)
@@ -105,15 +108,20 @@ if __name__ == "__main__":
         embeddings = torch.from_numpy(embeddings)
 
     # Use GPU if available
-    device = torch.device("cuda") if cfg.GPU_IDS else torch.device("cpu")
+    # device = torch.device("cuda") if cfg.GPU_IDS else torch.device("cpu")
+    device = torch.device("cpu")
+
     embeddings_gallery = embeddings_gallery.to(device)
     embeddings = embeddings.to(device)
 
     ### Calculate similarity
+    t1 = time.time()
+
     log.info("Calculating distance and getting the most similar ids per query")
     dist_func = get_dist_func(cfg.SOLVER.DISTANCE_FUNC)
     distmat = dist_func(x=embeddings, y=embeddings_gallery).cpu().numpy()
     indices = np.argsort(distmat, axis=1)
+    print("time to complete search", time.time() - t1)
 
     ### Constrain the results to only topk most similar ids
     indices = indices[:, : args.topk] if args.topk else indices

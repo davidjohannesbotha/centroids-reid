@@ -28,7 +28,8 @@ class ReidTransforms():
             transform = T.Compose([
                 T.Resize(self.cfg.INPUT.SIZE_TEST),
                 T.ToTensor(),
-                normalize_transform
+                T.Normalize(mean=self.cfg.INPUT.PIXEL_MEAN, std=self.cfg.INPUT.PIXEL_STD)
+                # normalize_transform
             ])
 
         return transform

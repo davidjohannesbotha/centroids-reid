@@ -3,10 +3,11 @@
 ./logs*
 ./debugs*
 ./mlruns*
-
+*.jpg
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*.yml
 *$py.class
 
 # C extensions
@@ -145,3 +146,34 @@ models/
 *.pyc
 debugs/
 *.c
+
+
+centroids-reid/datasets
+*.npy
+*.csv
+*.png
+*.pdf
+*.jpg
+*.h5
+*.jpeg
+*.json
+*.html
+*.txt
+*.rtf
+*.xls
+*.zip
+*.pptx
+*.DS_Store
+*.log
+*.bbl
+*.aux
+*.blg
+*.mat
+*.fls
+*.gz
+*.fdb_latexmk
+*.weights
+*.pickle
+*.pyc
+*.mp4
+*.pt
