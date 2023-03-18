@@ -1,7 +1,7 @@
 MODEL:
   NAME: 'resnet50_ibn_a'
   BACKBONE_EMB_SIZE: 2048
-  PRETRAIN_PATH: './models/r50_ibn_a.pth'
+  PRETRAIN_PATH: '/Users/davidbotha/NightWatch/centroids_reid/models/r50_ibn_a.pth'
   KEEP_CAMID_CENTROIDS: True
 
 INPUT:

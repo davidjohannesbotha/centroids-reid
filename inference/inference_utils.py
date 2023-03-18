@@ -4,7 +4,7 @@ from typing import Callable, Dict, List, Union
 
 import numpy as np
 import torch
-from datasets.transforms import ReidTransforms
+from centroids_reid.datasets.transforms import ReidTransforms
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision.datasets import ImageFolder
@@ -118,7 +118,7 @@ def _inference(model, batch, use_cuda, normalize_with_bn=True):
         return global_feat, filename
 
 
-def run_inference(model, val_loader, cfg, print_freq, use_cuda):
+def run_inference(model, cfg, print_freq, use_cuda, list_of_paths):
     embeddings = []
     paths = []
     device = torch.device("mps")
@@ -156,26 +156,36 @@ def run_inference(model, val_loader, cfg, print_freq, use_cuda):
         ]
     )
 
-    for filename in os.scandir(
-        "/Users/davidbotha/NightWatch/centroids-reid/datasets/market1501//query"
-        # "/Users/davidbotha/NightWatch/centroids-reid/datasets/market1501/bounding_box_test"
-    ):
+    for filename in list_of_paths:
         # print(filename.path)
-        if filename.is_file():
-            try:
-                image = transform(Image.open(filename.path))[None, :, :, :].to(device)
-            # print(image.shape)
-            # exit()
-            except:
-                pass
+        # print(filename)
 
-            embedding, path = _inference(model, (image, filename.path), use_cuda)
-            # print(embedding, path)
-            for vv, pp in zip(embedding, path):
-                # print(filename.path)
-                # print(vv.detach().cpu().numpy())
-                paths.append(filename.path)
-                embeddings.append(vv.detach().cpu().numpy())
+        image = transform(Image.open(filename))[None, :, :, :].to(device)
+
+        embedding, path = _inference(model, (image, filename), use_cuda)
+        # print(embedding, path)
+        for vv, pp in zip(embedding, path):
+            paths.append(filename)
+            embeddings.append(vv.detach().cpu().numpy())
+
+ 
+
+    # for filename in os.scandir(cfg.DATASETS.ROOT_DIR):
+    #     # print(filename.path)
+    #     if filename.is_file():
+
+    #         try:
+
+    #             image = transform(Image.open(filename.path))[None, :, :, :].to(device)
+
+    #             embedding, path = _inference(model, (image, filename.path), use_cuda)
+    #             # print(embedding, path)
+    #             for vv, pp in zip(embedding, path):
+    #                 paths.append(filename.path)
+    #                 embeddings.append(vv.detach().cpu().numpy())
+
+    #         except:
+    #             print("passed a file")
 
     # for pos, x in enumerate(val_loader):
 

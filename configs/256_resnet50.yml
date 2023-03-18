@@ -1,15 +1,13 @@
 MODEL:
   NAME: 'resnet50'
   BACKBONE_EMB_SIZE: 2048
-  PRETRAIN_PATH: './models/resnet50-19c8e357.pth'
+  PRETRAIN_PATH: "/Users/davidbotha/NightWatch/centroids_reid/models/resnet50-19c8e357.pth"
   KEEP_CAMID_CENTROIDS: True
 
 INPUT:
   SIZE_TRAIN: [256,128]
   SIZE_TEST: [256,128]
-  # SIZE_TRAIN: [128,64]
-  # SIZE_TEST: [128,64]
-
+  
 DATALOADER:
   NUM_INSTANCE: 4
 

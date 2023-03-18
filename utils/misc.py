@@ -17,9 +17,9 @@ from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, DistributedSampler, SequentialSampler
 
-from callbacks import ModelCheckpointPeriodic
-from datasets import init_dataset
-from modelling.backbones.resnet_ibn_a import resnet50_ibn_a
+from centroids_reid.callbacks import ModelCheckpointPeriodic
+from centroids_reid.datasets import init_dataset
+from centroids_reid.modelling.backbones.resnet_ibn_a import resnet50_ibn_a
 
 
 def get_distributed_sampler(

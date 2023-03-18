@@ -7,8 +7,8 @@ import os
 import sys
 
 sys.path.append("..")
-from datasets.transforms.build import ReidTransforms
-from datasets.bases import BaseDatasetLabelled
+from centroids_reid.datasets.transforms.build import ReidTransforms
+from centroids_reid.datasets.bases import BaseDatasetLabelled
 
 
 __all__ = ["visualize_ranked_results"]
