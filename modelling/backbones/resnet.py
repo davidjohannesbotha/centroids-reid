@@ -139,11 +139,11 @@ class ResNet(nn.Module):
         return x
 
     def load_param(self, model_path):
-        print(model_path)
+        # print(model_path)
         param_dict = torch.load(
-            "/Users/davidbotha/NightWatch/centroids_reid/models/resnet50-19c8e357.pth",
-            map_location=torch.device("cpu"),
+            "/Users/davidbotha/NightWatch/centroids_reid/models/resnet50-19c8e357.pth"
         )
+        # param_dict = torch.load(model_path)
 
         if "state_dict" in param_dict:
             param_dict = param_dict["state_dict"]

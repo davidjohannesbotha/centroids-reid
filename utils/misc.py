@@ -29,7 +29,7 @@ def get_distributed_sampler(
         "ddp": trainer.num_nodes * trainer.num_processes,
         "ddp_spawn": trainer.num_nodes * trainer.num_processes,
         "ddp2": trainer.num_nodes,
-        "ddp_cpu": trainer.num_processes * trainer.num_nodes,
+        "ddp_cpu": trainer.num_processes * trainer.num_nodses,
     }
     assert trainer.distributed_backend is not None
     kwargs = dict(

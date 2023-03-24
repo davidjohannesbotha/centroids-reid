@@ -11,4 +11,4 @@ print(results)
 #     "/Users/davidbotha/NightWatch/centroids-reid/output-dir/embeddings.npy",
 #     allow_pickle=True,
 # )
-# print(results.shape)
+# print(results.shape)clea
