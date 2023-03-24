@@ -119,9 +119,10 @@ def _inference(model, batch, use_cuda, normalize_with_bn=True):
 
 
 def run_inference(model, cfg, print_freq, use_cuda, list_of_paths):
+
     embeddings = []
     paths = []
-    device = torch.device("mps")
+    device = torch.device("cpu")
 
     # print(torch.backends.mps.is_available())
     # # this ensures that the current current PyTorch installation was built with MPS activated.
@@ -156,19 +157,24 @@ def run_inference(model, cfg, print_freq, use_cuda, list_of_paths):
         ]
     )
 
+    # print("checkppoint2:", list_of_paths)
+
     for filename in list_of_paths:
         # print(filename.path)
-        # print(filename)
+        print(filename)
 
         image = transform(Image.open(filename))[None, :, :, :].to(device)
+        # print(image)
 
         embedding, path = _inference(model, (image, filename), use_cuda)
+
+        # print(embedding, path)
         # print(embedding, path)
         for vv, pp in zip(embedding, path):
             paths.append(filename)
             embeddings.append(vv.detach().cpu().numpy())
 
- 
+    # exit()
 
     # for filename in os.scandir(cfg.DATASETS.ROOT_DIR):
     #     # print(filename.path)

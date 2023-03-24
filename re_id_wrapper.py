@@ -122,7 +122,7 @@ class gallery:
         logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
         log = logging.getLogger(__name__)
 
-        use_cuda = True  # if torch.cuda.is_available() and cfg.GPU_IDS else False
+        use_cuda = False  # if torch.cuda.is_available() and cfg.GPU_IDS else False
 
         if gallery == True:
 
@@ -148,6 +148,8 @@ class gallery:
 
         if gallery == False:
 
+            # print("HOCUS POICUS")
+
             ### Inference
             log.info("Running inference")
             embeddings, paths = run_inference(
@@ -164,6 +166,7 @@ class gallery:
             # log.info(f"Saving results to {str(SAVE_DIR)}")
             # np.save(SAVE_DIR / "query_embeddings.npy", embeddings)
             # np.save(SAVE_DIR / "query_paths.npy", paths)
+            # print("HOCUS POICU2S")
 
             self.query_embeddings = embeddings
 
@@ -304,6 +307,8 @@ class gallery:
         logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
         log = logging.getLogger(__name__)
 
+        print("WE ARE IN F SIM")
+
         # ### Data preparation
         # if args["images_in_subfolders"]:
         #     dataset_type = ImageFolderWithPaths
@@ -341,7 +346,7 @@ class gallery:
 
         # Use GPU if available
         # device = torch.device("cuda") if cfg.GPU_IDS else torch.device("cpu")
-        device = torch.device("mps")
+        device = torch.device("cpu")
 
         embeddings_gallery = embeddings_gallery.to(device)
         embeddings = embeddings.to(device)
@@ -525,13 +530,18 @@ class gallery:
         return 0
 
 
+# def reid(
+#     reid_gallery,
+#     frame_id,
+#     frames,
+#     boxes_with_probabilities,
+#     arg_queue
+#     que,
+# ):
 def reid(
     reid_gallery,
-    view_id_table,
-    frame_id,
-    frames,
-    boxes_with_probabilities,
-    context_dataframe,
+    arg_queue,
+    que,
 ):
     """
     Applies re-identification (ReID) to track people across frames.
@@ -549,34 +559,77 @@ def reid(
     """
 
     # intitalialise the gallery object
-    if frame_id == 0:
-        # initialise
-        reid_gallery.initialise(boxes_with_probabilities, frames)
+    while True:
+        (
+            frame_id,
+            frames,
+            boxes_with_probabilities,
+        ) = arg_queue.get()
 
-        return (context_dataframe, view_id_table)
+        if frame_id == 0:
+            # initialise
+            reid_gallery.initialise(boxes_with_probabilities, frames)
 
-    if frame_id > 0 and frame_id % 5 == 0:
-        # save all new bboxes
-        reid_gallery.save_images(boxes_with_probabilities, frames)
-        if frame_id % 50 != 0:
-            return context_dataframe, view_id_table
+            # return (context_dataframe, view_id_table)
 
-    if (frame_id % 50 == 0) and (frame_id > 0):
+            # que.put(context_dataframe)
+            # que.put(view_id_table)
+            # que.put(original_id_list)
+            # que.put(new_query_ids)
 
-        # embed the images that were saved into the latent space
-        reid_gallery.embed_from_directory(gallery=False)
-        # run the similarity thing
-        original_id_list, new_query_ids = reid_gallery.find_similar_people()
-        # update the context df things
-        context_dataframe["global_id"] = context_dataframe["global_id"].replace(
-            original_id_list, new_query_ids
-        )
+            # que.put(reid_gallery)
 
-        view_id_table["global_id"] = view_id_table["global_id"].replace(
-            original_id_list, new_query_ids
-        )
+            # return reid_gallery
+            que.put("ha")
 
-        reid_gallery.query_image_paths_list = []
-        reid_gallery.query_global_ids_list = []
+        # if frame_id > 0 and frame_id % 10 == 0 and frame_id % 20 != 0:
+        #     # save all new bboxes
+        #     self.save_images(boxes_with_probabilities, frames)
 
-        return context_dataframe, view_id_table
+        #     # print("HELLOOOOOOOO")
+        #     # if frame_id % 50 != 0:
+        #     # return context_dataframe, view_id_table
+        #     # que.put(context_dataframe)
+        #     # que.put(view_id_table)
+
+        #     # que.put(original_id_list)
+        #     # que.put(new_query_ids)
+        #     # return reid_gallery
+        #     que.put("ha")
+
+        if (frame_id % 20 == 0) and (frame_id > 0):
+
+            reid_gallery.save_images(boxes_with_probabilities, frames)
+
+            print("ENTEREDDDD the finder")
+
+            print("gallery embeddigs:::::::")
+            print(reid_gallery.gallery_embeddings)
+
+            print(reid_gallery.query_image_paths_list)
+
+            # embed the images that were saved into the latent space
+            reid_gallery.embed_from_directory(gallery=False)
+
+            # run the similarity thing
+            original_id_list, new_query_ids = reid_gallery.find_similar_people()
+
+            # update the context df things
+            # context_dataframe["global_id"] = context_dataframe["global_id"].replace(
+            #     original_id_list, new_query_ids
+            # )
+
+            # view_id_table["global_id"] = view_id_table["global_id"].replace(
+            #     original_id_list, new_query_ids
+            # )
+
+            reid_gallery.query_image_paths_list = []
+            reid_gallery.query_global_ids_list = []
+
+            print(original_id_list)
+            print(new_query_ids)
+
+            # return context_dataframe, view_id_table
+            # que.put(reid_gallery)
+            que.put(original_id_list)
+            que.put(new_query_ids)
