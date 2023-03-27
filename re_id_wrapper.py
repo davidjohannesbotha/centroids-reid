@@ -218,6 +218,18 @@ class gallery:
                 )
                 self.gallery_image_paths_list.append(path)
 
+                if (
+                    significant.loc[detection, "cam_id"] == 2
+                    and significant.loc[detection, "local_id"] == 13
+                ):
+                    print("\n\n THIS IS THE PATH FOR 13:", path)
+
+                if (
+                    significant.loc[detection, "cam_id"] == 2
+                    and significant.loc[detection, "local_id"] == 86
+                ):
+                    print("\n\n THIS IS THE PATH FOR 86:", path)
+
                 try:
                     indexes_of_id = self.connecting_dict[
                         significant.loc[detection, "global_id"]
@@ -294,6 +306,18 @@ class gallery:
                     + ".jpg"
                 )
 
+                if (
+                    significant.loc[detection, "cam_id"] == 2
+                    and significant.loc[detection, "local_id"] == 13
+                ):
+                    print("\n\n THIS IS THE PATH FOR 13:", path)
+
+                if (
+                    significant.loc[detection, "cam_id"] == 2
+                    and significant.loc[detection, "local_id"] == 86
+                ):
+                    print("\n\n THIS IS THE PATH FOR 86:", path)
+
                 self.query_image_paths_list.append(path)
 
                 cv.imwrite(
@@ -306,8 +330,6 @@ class gallery:
 
         logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
         log = logging.getLogger(__name__)
-
-        print("WE ARE IN F SIM")
 
         # ### Data preparation
         # if args["images_in_subfolders"]:
@@ -371,7 +393,7 @@ class gallery:
             else indices
         )
 
-        threshold = 0.12
+        threshold = 0.2
 
         out = {}
 
@@ -410,6 +432,8 @@ class gallery:
                 )[indices[q_num, :][mask]][0]
 
         self.matched = out
+
+        print(out)
         ### Save
         SAVE_DIR = Path(cfg.OUTPUT_DIR)
         SAVE_DIR.mkdir(exist_ok=True, parents=True)
@@ -459,8 +483,8 @@ class gallery:
                 )
                 # the query path
                 self.gallery_image_paths_list.append(query_image_path)
-                # the index at which to insert these
 
+                # the index at which to insert these
                 # append the length (the last entry position)
                 self.connecting_dict[master_global_id]["indices"].append(
                     len(self.gallery_global_ids_list) - 1
@@ -527,17 +551,11 @@ class gallery:
                 "n": 1,
             }
 
+        print(self.connecting_dict)
+
         return 0
 
 
-# def reid(
-#     reid_gallery,
-#     frame_id,
-#     frames,
-#     boxes_with_probabilities,
-#     arg_queue
-#     que,
-# ):
 def reid(
     reid_gallery,
     arg_queue,
@@ -560,76 +578,92 @@ def reid(
 
     # intitalialise the gallery object
     while True:
-        (
-            frame_id,
-            frames,
-            boxes_with_probabilities,
-        ) = arg_queue.get()
+        if not arg_queue.empty():
+            (
+                frame_id,
+                frames,
+                boxes_with_probabilities,
+            ) = arg_queue.get()
 
-        if frame_id == 0:
-            # initialise
-            reid_gallery.initialise(boxes_with_probabilities, frames)
+            print("passing frame::::", frame_id)
 
-            # return (context_dataframe, view_id_table)
+            if frame_id == 0:
+                # initialise
+                reid_gallery.initialise(boxes_with_probabilities, frames)
+                print("done with 1")
 
-            # que.put(context_dataframe)
-            # que.put(view_id_table)
-            # que.put(original_id_list)
-            # que.put(new_query_ids)
+                # return (context_dataframe, view_id_table)
 
-            # que.put(reid_gallery)
+                # que.put(context_dataframe)
+                # que.put(view_id_table)
+                # que.put(original_id_list)
+                # que.put(new_query_ids)
 
-            # return reid_gallery
-            que.put("ha")
+                # que.put(reid_gallery)
 
-        # if frame_id > 0 and frame_id % 10 == 0 and frame_id % 20 != 0:
-        #     # save all new bboxes
-        #     self.save_images(boxes_with_probabilities, frames)
+                # return reid_gallery
+                que.put("comp")
 
-        #     # print("HELLOOOOOOOO")
-        #     # if frame_id % 50 != 0:
-        #     # return context_dataframe, view_id_table
-        #     # que.put(context_dataframe)
-        #     # que.put(view_id_table)
+            if frame_id % 5 == 0 and frame_id > 0 and frame_id % 45 != 0:
+                print("starting with 2")
 
-        #     # que.put(original_id_list)
-        #     # que.put(new_query_ids)
-        #     # return reid_gallery
-        #     que.put("ha")
+                reid_gallery.save_images(boxes_with_probabilities, frames)
+                print("done with 2")
 
-        if (frame_id % 20 == 0) and (frame_id > 0):
+                #     # save all new bboxes
+                #     self.save_images(boxes_with_probabilities, frames)
 
-            reid_gallery.save_images(boxes_with_probabilities, frames)
+                #     # print("HELLOOOOOOOO")
+                #     # if frame_id % 50 != 0:
+                #     # return context_dataframe, view_id_table
+                #     # que.put(context_dataframe)
+                #     # que.put(view_id_table)
 
-            print("ENTEREDDDD the finder")
+                #     # que.put(original_id_list)
+                #     # que.put(new_query_ids)
+                #     # return reid_gallery
+                que.put("comp")
 
-            print("gallery embeddigs:::::::")
-            print(reid_gallery.gallery_embeddings)
+            if (frame_id % 50 == 0) and (frame_id > 0):
 
-            print(reid_gallery.query_image_paths_list)
+                print("ENTEREDDDD the finder")
+                reid_gallery.embed_from_directory(gallery=False)
 
-            # embed the images that were saved into the latent space
-            reid_gallery.embed_from_directory(gallery=False)
+                # print("gallery embeddigs:::::::")
+                # print(reid_gallery.gallery_embeddings)
 
-            # run the similarity thing
-            original_id_list, new_query_ids = reid_gallery.find_similar_people()
+                # print(reid_gallery.query_image_paths_list)
 
-            # update the context df things
-            # context_dataframe["global_id"] = context_dataframe["global_id"].replace(
-            #     original_id_list, new_query_ids
-            # )
+                # embed the images that were saved into the latent space
+                # reid_gallery.embed_from_directory(gallery=False)
 
-            # view_id_table["global_id"] = view_id_table["global_id"].replace(
-            #     original_id_list, new_query_ids
-            # )
+                # run the similarity thing
+                original_id_list, new_query_ids = reid_gallery.find_similar_people()
 
-            reid_gallery.query_image_paths_list = []
-            reid_gallery.query_global_ids_list = []
+                # update the context df things
+                # context_dataframe["global_id"] = context_dataframe["global_id"].replace(
+                #     original_id_list, new_query_ids
+                # )
 
-            print(original_id_list)
-            print(new_query_ids)
+                # view_id_table["global_id"] = view_id_table["global_id"].replace(
+                #     original_id_list, new_query_ids
+                # )
 
-            # return context_dataframe, view_id_table
-            # que.put(reid_gallery)
-            que.put(original_id_list)
-            que.put(new_query_ids)
+                reid_gallery.query_image_paths_list = []
+                reid_gallery.query_global_ids_list = []
+
+                # print(original_id_list)
+                # print(new_query_ids)
+
+                if original_id_list == new_query_ids:
+                    print("\nidentical")
+
+                else:
+                    print("\n replaced!!")
+
+                # return context_dataframe, view_id_table
+                # que.put(reid_gallery)
+                que.put(original_id_list)
+                que.put(new_query_ids)
+            else:
+                que.put("comp")

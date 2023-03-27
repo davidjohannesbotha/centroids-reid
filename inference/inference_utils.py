@@ -158,21 +158,29 @@ def run_inference(model, cfg, print_freq, use_cuda, list_of_paths):
     )
 
     # print("checkppoint2:", list_of_paths)
+    filename_batch = []
+    images_batch = []
 
     for filename in list_of_paths:
         # print(filename.path)
-        print(filename)
+        # print(filename)
 
         image = transform(Image.open(filename))[None, :, :, :].to(device)
+
         # print(image)
 
-        embedding, path = _inference(model, (image, filename), use_cuda)
+        filename_batch.append(filename)
+        images_batch.append(image)
 
-        # print(embedding, path)
-        # print(embedding, path)
-        for vv, pp in zip(embedding, path):
-            paths.append(filename)
-            embeddings.append(vv.detach().cpu().numpy())
+    embedding, path = _inference(
+        model, (torch.cat(images_batch), filename_batch), use_cuda
+    )
+
+    # print(embedding, path)
+    # print(embedding, path)
+    for vv, pp in zip(embedding, path):
+        paths.append(filename)
+        embeddings.append(vv.detach().cpu().numpy())
 
     # exit()
 
