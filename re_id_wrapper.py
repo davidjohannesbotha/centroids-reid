@@ -73,6 +73,8 @@ class gallery:
             cfg.merge_from_file(self.similar_args["config_file"])
         cfg.merge_from_list(self.similar_args["opts"])
 
+        self.threshold = self.similar_args["similarity_threshold"]
+
         self.connecting_dict = {}
 
         self.gallery_global_ids_list = []
@@ -103,8 +105,6 @@ class gallery:
             if len(result) < k:
                 result.append(item)
             else:
-                # variable
-                # j = int(random.random() * n)
                 j = random.randrange(n)
 
                 # if variable smaller than the allowed amount of elements
@@ -393,8 +393,6 @@ class gallery:
             else indices
         )
 
-        threshold = 0.2
-
         out = {}
 
         self.non_matched_ids = []
@@ -404,7 +402,7 @@ class gallery:
         self.new_query_global_ids_list = deepcopy(self.query_global_ids_list)
 
         for q_num, query_path in enumerate(paths):
-            mask = distmat[q_num, indices[q_num, :]] < threshold
+            mask = distmat[q_num, indices[q_num, :]] < self.threshold
 
             if np.all(mask == False):
                 self.non_matched_ids.append(self.query_global_ids_list[q_num])
@@ -433,6 +431,7 @@ class gallery:
 
         self.matched = out
 
+        print("\n\nOUT RESULT")
         print(out)
         ### Save
         SAVE_DIR = Path(cfg.OUTPUT_DIR)
@@ -550,19 +549,16 @@ class gallery:
                 "image_paths": [self.non_matched_paths[idx]],
                 "n": 1,
             }
+        print("\n\nCONNECTING DICT")
 
         print(self.connecting_dict)
 
         return 0
 
 
-def reid(
-    reid_gallery,
-    arg_queue,
-    que,
-):
+def reid(reid_gallery, arg_queue, que, save_image_interval, find_similar_interval):
     """
-    Applies re-identification (ReID) to track people across frames.
+    Applies re-identification (ReID) to track people across frames. At the moment, this is called out of the of the main branch to run in parallel.
 
     Args:
         reid_gallery (ReIDGallery): An object representing the ReID gallery.
@@ -576,84 +572,51 @@ def reid(
         Tuple[pd.DataFrame, pd.DataFrame] or None: If the ReID process is complete, returns a tuple containing the updated context dataframe and view ID table. Otherwise, returns None.
     """
 
-    # intitalialise the gallery object
+    # Due to the function running in parallel, we want it to always keep running.
     while True:
+        # if there is some info passed from the main script
         if not arg_queue.empty():
+
+            time1 = time.time()
             (
                 frame_id,
                 frames,
                 boxes_with_probabilities,
             ) = arg_queue.get()
-
-            print("passing frame::::", frame_id)
+            print("\n\nthis is the time to get a heavy thing", time.time() - time1)
 
             if frame_id == 0:
                 # initialise
                 reid_gallery.initialise(boxes_with_probabilities, frames)
                 print("done with 1")
 
-                # return (context_dataframe, view_id_table)
+                que.put(1)
 
-                # que.put(context_dataframe)
-                # que.put(view_id_table)
-                # que.put(original_id_list)
-                # que.put(new_query_ids)
-
-                # que.put(reid_gallery)
-
-                # return reid_gallery
-                que.put("comp")
-
-            if frame_id % 5 == 0 and frame_id > 0 and frame_id % 45 != 0:
-                print("starting with 2")
+            if (
+                frame_id % save_image_interval == 0
+                and frame_id > 0
+                and frame_id % (find_similar_interval - save_image_interval) != 0
+                # and frame_id % (find_similar_interval - save_image_interval) != 0
+            ):
+                print("\nstarting with saving images")
 
                 reid_gallery.save_images(boxes_with_probabilities, frames)
-                print("done with 2")
-
-                #     # save all new bboxes
-                #     self.save_images(boxes_with_probabilities, frames)
-
-                #     # print("HELLOOOOOOOO")
-                #     # if frame_id % 50 != 0:
-                #     # return context_dataframe, view_id_table
-                #     # que.put(context_dataframe)
-                #     # que.put(view_id_table)
-
-                #     # que.put(original_id_list)
-                #     # que.put(new_query_ids)
-                #     # return reid_gallery
-                que.put("comp")
-
-            if (frame_id % 50 == 0) and (frame_id > 0):
-
-                print("ENTEREDDDD the finder")
                 reid_gallery.embed_from_directory(gallery=False)
 
-                # print("gallery embeddigs:::::::")
-                # print(reid_gallery.gallery_embeddings)
+                print("\ndone with saving images")
 
-                # print(reid_gallery.query_image_paths_list)
+                que.put(1)
 
-                # embed the images that were saved into the latent space
-                # reid_gallery.embed_from_directory(gallery=False)
+            if (frame_id % find_similar_interval == 0) and (frame_id > 0):
 
-                # run the similarity thing
+                print("Started the finder")
+
+                # run the similarity function
                 original_id_list, new_query_ids = reid_gallery.find_similar_people()
 
-                # update the context df things
-                # context_dataframe["global_id"] = context_dataframe["global_id"].replace(
-                #     original_id_list, new_query_ids
-                # )
-
-                # view_id_table["global_id"] = view_id_table["global_id"].replace(
-                #     original_id_list, new_query_ids
-                # )
-
+                # clear out the query info, as this is no longer needed
                 reid_gallery.query_image_paths_list = []
                 reid_gallery.query_global_ids_list = []
-
-                # print(original_id_list)
-                # print(new_query_ids)
 
                 if original_id_list == new_query_ids:
                     print("\nidentical")
@@ -661,9 +624,8 @@ def reid(
                 else:
                     print("\n replaced!!")
 
-                # return context_dataframe, view_id_table
-                # que.put(reid_gallery)
+                # this is the information that needs to be returned to the main branch of the programme
                 que.put(original_id_list)
                 que.put(new_query_ids)
             else:
-                que.put("comp")
+                que.put(1)
