@@ -601,7 +601,6 @@ def reid(reid_gallery, arg_queue, que, save_image_interval, find_similar_interva
                 print("\nstarting with saving images")
 
                 reid_gallery.save_images(boxes_with_probabilities, frames)
-                reid_gallery.embed_from_directory(gallery=False)
 
                 print("\ndone with saving images")
 
@@ -612,6 +611,8 @@ def reid(reid_gallery, arg_queue, que, save_image_interval, find_similar_interva
                 print("Started the finder")
 
                 # run the similarity function
+                reid_gallery.embed_from_directory(gallery=False)
+
                 original_id_list, new_query_ids = reid_gallery.find_similar_people()
 
                 # clear out the query info, as this is no longer needed
