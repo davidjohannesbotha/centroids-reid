@@ -15,6 +15,10 @@ import yaml
 import numpy as np
 import torch
 from copy import deepcopy
+import multiprocessing as mp
+
+from nw_utils.processing import import_global_ids
+
 
 sys.path.append(".")
 
@@ -630,3 +634,96 @@ def reid(reid_gallery, arg_queue, que, save_image_interval, find_similar_interva
                 que.put(new_query_ids)
             else:
                 que.put(1)
+
+
+def reid_wrapper(
+    all_boxes_with_probs,
+    context_df,
+    frame_id,
+    arg_que,
+    frames,
+    reid_gallery,
+    multithread_que,
+    REID_SAVE_IMAGE_INTERVAL,
+    REID_FIND_SIMILAR_INTERVAL,
+    view,
+    done_flag,
+):
+    """contains the logic of multiprocessing"""
+    # join the boxes with global ids and box
+    for box in range(len(all_boxes_with_probs)):
+        all_boxes_with_probs[box] = import_global_ids(
+            context_df, all_boxes_with_probs[box]
+        )
+
+    if frame_id == 0:
+        arg_que.put(
+            (
+                frame_id,
+                frames,
+                all_boxes_with_probs,
+            )
+        )
+
+        reid_process = mp.Process(
+            target=reid,
+            args=(
+                reid_gallery,
+                arg_que,
+                multithread_que,
+                REID_SAVE_IMAGE_INTERVAL,
+                REID_FIND_SIMILAR_INTERVAL,
+            ),
+            name="REID process",
+        )
+        reid_process.start()
+        done_flag = False
+
+    # print("\nbefore context:", context_df[context_df["cam_id"] == 2])
+
+    # there is simething the reid model wants to give us (thus it has finished running):
+    if not multithread_que.empty():
+
+        # get whatever is in the que
+        original = multithread_que.get()
+        # 1 is the flag that is returned that shows that it is done with non-returning feedback
+        if original != 1:
+
+            new = multithread_que.get()
+
+            print(
+                "\n before context:",
+                context_df[context_df["cam_id"] == 2],
+            )
+
+            context_df["global_id"] = context_df["global_id"].replace(original, new)
+
+            view.region.local_to_global["global_id"] = view.region.local_to_global[
+                "global_id"
+            ].replace(original, new)
+            print(
+                "\n after context:",
+                context_df[context_df["cam_id"] == 2],
+            )
+        # set the done flag, independependent of what the reid function did
+        done_flag = True
+
+    # check if the done flag is true
+    if done_flag == True:
+        # only pass the info to the reid model under certain conditions
+        if frame_id % 5 == 0 and frame_id > 0:
+            done_flag = False
+            arg_que.put(
+                (
+                    frame_id,
+                    frames,
+                    all_boxes_with_probs,
+                )
+            )
+
+    return (
+        arg_que,
+        context_df["global_id"],
+        view.region.local_to_global["global_id"],
+        done_flag,
+    )
