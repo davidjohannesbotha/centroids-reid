@@ -96,6 +96,9 @@ class gallery:
         self.non_matched_paths = []
         self.non_matched_embeddings = []
 
+        self.unique_query_global_ids = []
+        self.unique_gallery_global_ids = []
+
     def reservoir_sampling(self, result, iterator, k, n):
         """
         result: current samples chosen
@@ -335,14 +338,6 @@ class gallery:
         logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
         log = logging.getLogger(__name__)
 
-        # ### Data preparation
-        # if args["images_in_subfolders"]:
-        #     dataset_type = ImageFolderWithPaths
-        # else:
-        #     dataset_type = ImageDataset
-        # log.info(f"Preparing data using {type(dataset_type)} dataset class")
-        # val_loader = make_inference_data_loader(cfg, cfg.DATASETS.ROOT_DIR, dataset_type)
-
         ### Load gallery data
         # LOAD_PATH = Path(args["gallery_data"])
         embeddings_gallery = torch.from_numpy(self.gallery_embeddings)
@@ -403,6 +398,9 @@ class gallery:
         self.non_matched_paths = []
         self.non_matched_embeddings = []
 
+        self.unique_query_global_ids = []
+        self.unique_gallery_global_ids = []
+
         self.new_query_global_ids_list = deepcopy(self.query_global_ids_list)
 
         for q_num, query_path in enumerate(paths):
@@ -415,18 +413,43 @@ class gallery:
 
             else:
                 query_dict = {}
+                # query index
                 query_dict["indices"] = indices[q_num, :][mask]
-                # print(indices)
-                # print(indices[q_num, :][mask])
+                # query path
                 query_dict["paths"] = paths_gallery[indices[q_num, :]][mask]
+                # distance from query to match
                 query_dict["distances"] = distmat[q_num, indices[q_num, :]][mask]
-
+                # gloabl id's of matched identities from gallery
                 query_dict["matched_global_ids"] = np.array(
                     self.gallery_global_ids_list
                 )[indices[q_num, :][mask]]
+                # embeddinng of query
                 query_dict["embedding"] = embeddings[q_num, :].cpu().numpy()
+                # global_id of query
                 query_dict["query_global_id"] = self.query_global_ids_list[q_num]
+                # pack into an obejct
                 out[query_path] = query_dict
+
+                # if we dont match two global ids to one another (ie ocsort got it wrong and we have two global ids for one unique object)
+                if (
+                    np.array(self.gallery_global_ids_list)[indices[q_num, :][mask]][0]
+                    != self.new_query_global_ids_list[q_num]
+                ):
+                    # print(
+                    #     "\n\n\n\nENTERED!!!!!!!\n\n",
+                    #     self.new_query_global_ids_list[q_num],
+                    #     np.array(self.gallery_global_ids_list)[indices[q_num, :][mask]][
+                    #         0
+                    #     ],
+                    # )
+                    self.unique_query_global_ids.append(
+                        self.new_query_global_ids_list[q_num]
+                    )
+                    self.unique_gallery_global_ids.append(
+                        np.array(self.gallery_global_ids_list)[indices[q_num, :][mask]][
+                            0
+                        ]
+                    )
 
                 # this list contains all the new ids associated with the original query ids
                 self.new_query_global_ids_list[q_num] = np.array(
@@ -435,8 +458,8 @@ class gallery:
 
         self.matched = out
 
-        print("\n\nOUT RESULT")
-        print(out)
+        # print("\n\nOUT RESULT")
+        # print(out)
         ### Save
         SAVE_DIR = Path(cfg.OUTPUT_DIR)
         SAVE_DIR.mkdir(exist_ok=True, parents=True)
@@ -452,11 +475,10 @@ class gallery:
     def match_global_ids(self):
         """
         Process the results from the get similar function.
-        """
+
         # two things need to happen 1) The index needs to be added (or resivour sampled) for an addition to the gallery data. Also, we then need to append the detection to the gallery_embeddings, the gallery_global_ids and the gallery image paths.
 
-        # Also, we need to go find all the query images that did NOT have a match meeting the threshold and then subsequently add them to the gallery_embeddings, the gallery_global_ids and the gallery_image paths with their original global_ids which were either supplied by the tracker (ocsort) or by the nearest neighbour in terms of location.
-
+        # Also, we need to go find all the query images that did NOT have a match meeting the threshold and then subsequently add them to the gallery_embeddings, the gallery_global_ids and the gallery_image paths with their original global_ids which were either supplied by the tracker (ocsort) or by the nearest neighbour in terms of location."""
         list_length = 5
         # print(self.matched)
         # exit()
@@ -532,7 +554,7 @@ class gallery:
                 # add the number of elements added to the connecting dict
                 self.connecting_dict[master_global_id]["n"] += 1
 
-        # for all the query images that had no match whatsoever, we need to add them to the embeddings, the image_paths, the global_id and finally the connecting df
+        # for all the query images that had no match whatsoever (meaning they are theoretically new detections), we need to add them to the embeddings, the image_paths, the global_id and finally the connecting df
         for idx, id in enumerate(self.non_matched_ids):
             # add the ids
             self.gallery_global_ids_list.append(id)
@@ -559,160 +581,107 @@ class gallery:
 
         return 0
 
+    def reid(self, arg_queue, que, save_image_interval, find_similar_interval):
+        """
+        Applies re-identification (ReID) to track people across frames. At the moment, this is called out of the of the main branch to run in parallel.
 
-def reid(reid_gallery, arg_queue, que, save_image_interval, find_similar_interval):
-    """
-    Applies re-identification (ReID) to track people across frames. At the moment, this is called out of the of the main branch to run in parallel.
+        Args:
+            reid_gallery (ReIDGallery): An object representing the ReID gallery.
+            view_id_table (pd.DataFrame): A Pandas DataFrame mapping person IDs to global IDs across views.
+            frame_id (int): The index of the current frame in the video sequence.
+            frames (List[np.ndarray]): A list of frames in the video sequence.
+            boxes_with_probabilities A list of bounding boxes (in the format (x1, y1, x2, y2)) and their associated probabilities for the current frame.
+            context_dataframe (pd.DataFrame): A Pandas DataFrame
 
-    Args:
-        reid_gallery (ReIDGallery): An object representing the ReID gallery.
-        view_id_table (pd.DataFrame): A Pandas DataFrame mapping person IDs to global IDs across views.
-        frame_id (int): The index of the current frame in the video sequence.
-        frames (List[np.ndarray]): A list of frames in the video sequence.
-        boxes_with_probabilities A list of bounding boxes (in the format (x1, y1, x2, y2)) and their associated probabilities for the current frame.
-        context_dataframe (pd.DataFrame): A Pandas DataFrame
+        Returns:
+            Tuple[pd.DataFrame, pd.DataFrame] or None: If the ReID process is complete, returns a tuple containing the updated context dataframe and view ID table. Otherwise, returns None.
+        """
 
-    Returns:
-        Tuple[pd.DataFrame, pd.DataFrame] or None: If the ReID process is complete, returns a tuple containing the updated context dataframe and view ID table. Otherwise, returns None.
-    """
+        # Due to the function running in parallel, we want it to always keep running.
+        while True:
+            # if there is some info passed from the main script
+            if not arg_queue.empty():
 
-    # Due to the function running in parallel, we want it to always keep running.
-    while True:
-        # if there is some info passed from the main script
-        if not arg_queue.empty():
+                time1 = time.time()
+                (
+                    frame_id,
+                    frames,
+                    boxes_with_probabilities,
+                ) = arg_queue.get()
+                print("\n\nthis is the time to get a heavy thing", time.time() - time1)
 
-            time1 = time.time()
-            (
-                frame_id,
-                frames,
-                boxes_with_probabilities,
-            ) = arg_queue.get()
-            print("\n\nthis is the time to get a heavy thing", time.time() - time1)
+                if frame_id == 0:
+                    # initialise
+                    self.initialise(boxes_with_probabilities, frames)
+                    print("done with 1")
 
-            if frame_id == 0:
-                # initialise
-                reid_gallery.initialise(boxes_with_probabilities, frames)
-                print("done with 1")
+                    que.put(1)
 
-                que.put(1)
+                if (
+                    frame_id % save_image_interval == 0
+                    and frame_id > 0
+                    and frame_id % (find_similar_interval - save_image_interval) != 0
+                    # and frame_id % (find_similar_interval - save_image_interval) != 0
+                ):
+                    print("\nstarting with saving images")
 
-            if (
-                frame_id % save_image_interval == 0
-                and frame_id > 0
-                and frame_id % (find_similar_interval - save_image_interval) != 0
-                # and frame_id % (find_similar_interval - save_image_interval) != 0
-            ):
-                print("\nstarting with saving images")
+                    self.save_images(boxes_with_probabilities, frames)
 
-                reid_gallery.save_images(boxes_with_probabilities, frames)
+                    print("\ndone with saving images")
 
-                print("\ndone with saving images")
+                    que.put(1)
 
-                que.put(1)
+                if (frame_id % find_similar_interval == 0) and (frame_id > 0):
 
-            if (frame_id % find_similar_interval == 0) and (frame_id > 0):
+                    print("Started the finder")
 
-                print("Started the finder")
+                    # run the similarity function
+                    self.embed_from_directory(gallery=False)
 
-                # run the similarity function
-                reid_gallery.embed_from_directory(gallery=False)
+                    original_id_list, new_query_ids = self.find_similar_people()
 
-                original_id_list, new_query_ids = reid_gallery.find_similar_people()
+                    # clear out the query info, as this is no longer needed
+                    self.query_image_paths_list = []
+                    self.query_global_ids_list = []
 
-                # clear out the query info, as this is no longer needed
-                reid_gallery.query_image_paths_list = []
-                reid_gallery.query_global_ids_list = []
+                    if original_id_list == new_query_ids:
+                        print("\nidentical")
 
-                if original_id_list == new_query_ids:
-                    print("\nidentical")
+                    else:
+                        print("\n replaced!!")
+
+                    # this is the information that needs to be returned to the main branch of the programme
+                    que.put(original_id_list)
+                    que.put(new_query_ids)
+                    que.put(
+                        (self.unique_gallery_global_ids, self.unique_query_global_ids)
+                    )
 
                 else:
-                    print("\n replaced!!")
+                    que.put(1)
 
-                # this is the information that needs to be returned to the main branch of the programme
-                que.put(original_id_list)
-                que.put(new_query_ids)
-            else:
-                que.put(1)
-
-
-def reid_wrapper(
-    all_boxes_with_probs,
-    context_df,
-    frame_id,
-    arg_que,
-    frames,
-    reid_gallery,
-    multithread_que,
-    REID_SAVE_IMAGE_INTERVAL,
-    REID_FIND_SIMILAR_INTERVAL,
-    view,
-    done_flag,
-):
-    """contains the logic of multiprocessing"""
-    # join the boxes with global ids and box
-    for box in range(len(all_boxes_with_probs)):
-        all_boxes_with_probs[box] = import_global_ids(
-            context_df, all_boxes_with_probs[box]
-        )
-
-    if frame_id == 0:
-        arg_que.put(
-            (
-                frame_id,
-                frames,
-                all_boxes_with_probs,
-            )
-        )
-
-        reid_process = mp.Process(
-            target=reid,
-            args=(
-                reid_gallery,
-                arg_que,
-                multithread_que,
-                REID_SAVE_IMAGE_INTERVAL,
-                REID_FIND_SIMILAR_INTERVAL,
-            ),
-            name="REID process",
-        )
-        reid_process.start()
-        done_flag = False
-
-    # print("\nbefore context:", context_df[context_df["cam_id"] == 2])
-
-    # there is simething the reid model wants to give us (thus it has finished running):
-    if not multithread_que.empty():
-
-        # get whatever is in the que
-        original = multithread_que.get()
-        # 1 is the flag that is returned that shows that it is done with non-returning feedback
-        if original != 1:
-
-            new = multithread_que.get()
-
-            print(
-                "\n before context:",
-                context_df[context_df["cam_id"] == 2],
+    def reid_wrapper(
+        self,
+        all_boxes_with_probs,
+        context_df,
+        frame_id,
+        arg_que,
+        frames,
+        multithread_que,
+        REID_SAVE_IMAGE_INTERVAL,
+        REID_FIND_SIMILAR_INTERVAL,
+        view,
+        trajectories,
+        done_flag,
+    ):
+        """contains the logic of multiprocessing"""
+        # join the boxes with global ids and box
+        for box in range(len(all_boxes_with_probs)):
+            all_boxes_with_probs[box] = import_global_ids(
+                context_df, all_boxes_with_probs[box]
             )
 
-            context_df["global_id"] = context_df["global_id"].replace(original, new)
-
-            view.region.local_to_global["global_id"] = view.region.local_to_global[
-                "global_id"
-            ].replace(original, new)
-            print(
-                "\n after context:",
-                context_df[context_df["cam_id"] == 2],
-            )
-        # set the done flag, independependent of what the reid function did
-        done_flag = True
-
-    # check if the done flag is true
-    if done_flag == True:
-        # only pass the info to the reid model under certain conditions
-        if frame_id % 5 == 0 and frame_id > 0:
-            done_flag = False
+        if frame_id == 0:
             arg_que.put(
                 (
                     frame_id,
@@ -721,9 +690,91 @@ def reid_wrapper(
                 )
             )
 
-    return (
-        arg_que,
-        context_df["global_id"],
-        view.region.local_to_global["global_id"],
-        done_flag,
-    )
+            reid_process = mp.Process(
+                target=self.reid,
+                args=(
+                    arg_que,
+                    multithread_que,
+                    REID_SAVE_IMAGE_INTERVAL,
+                    REID_FIND_SIMILAR_INTERVAL,
+                ),
+                name="REID process",
+            )
+            reid_process.start()
+            done_flag = False
+
+        # print("\nbefore context:", context_df[context_df["cam_id"] == 2])
+
+        # there is simething the reid model wants to give us (thus it has finished running):
+        if not multithread_que.empty():
+
+            # get whatever is in the que
+            original = multithread_que.get()
+            # 1 is the flag that is returned that shows that it is done with non-returning feedback
+            if original != 1:
+
+                new = multithread_que.get()
+                unique_global = multithread_que.get()
+
+                # replace the global id in the context dataframe
+                context_df["global_id"] = context_df["global_id"].replace(original, new)
+
+                # replace the global id mapping method in the local to global table
+                view.region.local_to_global["global_id"] = view.region.local_to_global[
+                    "global_id"
+                ].replace(original, new)
+
+                # change the saved history by altering the trajectories.
+
+                for unique_replacement in range(len(unique_global[0])):
+
+                    # print(
+                    #     "\n\nbefore:::",
+                    #     trajectories[unique_global[0][unique_replacement]],
+                    # )
+
+                    trajectories[unique_global[0][unique_replacement]][0].extend(
+                        trajectories[unique_global[1][unique_replacement]][0]
+                    )
+                    trajectories[unique_global[0][unique_replacement]][1].extend(
+                        trajectories[unique_global[1][unique_replacement]][1]
+                    )
+
+                    # print(
+                    #     "\n\AFTER:::",
+                    #     trajectories[unique_global[0][unique_replacement]],
+                    # )
+                # for unique_replacement in range(len(unique_global[1])):
+                #     # try to delete all the query global ids
+                #     try:
+                #         trajectories.pop(unique_global[1][unique_replacement])
+                #     except:
+                #         pass
+
+                # print(
+                #     "\n after context:",
+                #     context_df[context_df["cam_id"] == 2],
+                # )
+            # set the done flag, independependent of what the reid function did
+            done_flag = True
+
+        # check if the done flag is true
+        if done_flag == True:
+            # only pass the info to the reid model under certain conditions
+            if frame_id % 5 == 0 and frame_id > 0:
+                done_flag = False
+                arg_que.put(
+                    (
+                        frame_id,
+                        frames,
+                        all_boxes_with_probs,
+                    )
+                )
+
+        return (
+            arg_que,
+            context_df["global_id"],
+            view.region.local_to_global["global_id"],
+            trajectories,
+            done_flag,
+        )
