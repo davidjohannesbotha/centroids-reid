@@ -653,9 +653,9 @@ class gallery:
                     # this is the information that needs to be returned to the main branch of the programme
                     que.put(original_id_list)
                     que.put(new_query_ids)
-                    que.put(
-                        (self.unique_gallery_global_ids, self.unique_query_global_ids)
-                    )
+                    # que.put(
+                    #     (self.unique_gallery_global_ids, self.unique_query_global_ids)
+                    # )
 
                 else:
                     que.put(1)
@@ -671,7 +671,7 @@ class gallery:
         REID_SAVE_IMAGE_INTERVAL,
         REID_FIND_SIMILAR_INTERVAL,
         view,
-        trajectories,
+        # trajectories,
         done_flag,
     ):
         """contains the logic of multiprocessing"""
@@ -714,7 +714,7 @@ class gallery:
             if original != 1:
 
                 new = multithread_que.get()
-                unique_global = multithread_que.get()
+                # unique_global = multithread_que.get()
 
                 # replace the global id in the context dataframe
                 context_df["global_id"] = context_df["global_id"].replace(original, new)
@@ -726,35 +726,15 @@ class gallery:
 
                 # change the saved history by altering the trajectories.
 
-                for unique_replacement in range(len(unique_global[0])):
+                # for unique_replacement in range(len(unique_global[0])):
 
-                    # print(
-                    #     "\n\nbefore:::",
-                    #     trajectories[unique_global[0][unique_replacement]],
-                    # )
+                #     trajectories[unique_global[0][unique_replacement]][0].extend(
+                #         trajectories[unique_global[1][unique_replacement]][0]
+                #     )
+                #     trajectories[unique_global[0][unique_replacement]][1].extend(
+                #         trajectories[unique_global[1][unique_replacement]][1]
+                #     )
 
-                    trajectories[unique_global[0][unique_replacement]][0].extend(
-                        trajectories[unique_global[1][unique_replacement]][0]
-                    )
-                    trajectories[unique_global[0][unique_replacement]][1].extend(
-                        trajectories[unique_global[1][unique_replacement]][1]
-                    )
-
-                    # print(
-                    #     "\n\AFTER:::",
-                    #     trajectories[unique_global[0][unique_replacement]],
-                    # )
-                # for unique_replacement in range(len(unique_global[1])):
-                #     # try to delete all the query global ids
-                #     try:
-                #         trajectories.pop(unique_global[1][unique_replacement])
-                #     except:
-                #         pass
-
-                # print(
-                #     "\n after context:",
-                #     context_df[context_df["cam_id"] == 2],
-                # )
             # set the done flag, independependent of what the reid function did
             done_flag = True
 
@@ -775,6 +755,6 @@ class gallery:
             arg_que,
             context_df["global_id"],
             view.region.local_to_global["global_id"],
-            trajectories,
+            # trajectories,
             done_flag,
         )
