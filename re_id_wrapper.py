@@ -313,17 +313,17 @@ class gallery:
                     + ".jpg"
                 )
 
-                if (
-                    significant.loc[detection, "cam_id"] == 2
-                    and significant.loc[detection, "local_id"] == 13
-                ):
-                    print("\n\n THIS IS THE PATH FOR 13:", path)
+                # if (
+                #     significant.loc[detection, "cam_id"] == 2
+                #     and significant.loc[detection, "local_id"] == 13
+                # ):
+                #     print("\n\n THIS IS THE PATH FOR 13:", path)
 
-                if (
-                    significant.loc[detection, "cam_id"] == 2
-                    and significant.loc[detection, "local_id"] == 86
-                ):
-                    print("\n\n THIS IS THE PATH FOR 86:", path)
+                # if (
+                #     significant.loc[detection, "cam_id"] == 2
+                #     and significant.loc[detection, "local_id"] == 86
+                # ):
+                #     print("\n\n THIS IS THE PATH FOR 86:", path)
 
                 self.query_image_paths_list.append(path)
 
@@ -435,13 +435,6 @@ class gallery:
                     np.array(self.gallery_global_ids_list)[indices[q_num, :][mask]][0]
                     != self.new_query_global_ids_list[q_num]
                 ):
-                    # print(
-                    #     "\n\n\n\nENTERED!!!!!!!\n\n",
-                    #     self.new_query_global_ids_list[q_num],
-                    #     np.array(self.gallery_global_ids_list)[indices[q_num, :][mask]][
-                    #         0
-                    #     ],
-                    # )
                     self.unique_query_global_ids.append(
                         self.new_query_global_ids_list[q_num]
                     )
