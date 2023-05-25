@@ -124,7 +124,6 @@ class gallery:
         return replace, position
 
     def embed_from_directory(self, gallery):
-
         ### Prepare logging
         logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
         log = logging.getLogger(__name__)
@@ -132,7 +131,6 @@ class gallery:
         use_cuda = False  # if torch.cuda.is_available() and cfg.GPU_IDS else False
 
         if gallery == True:
-
             ### Inference
             log.info("Running inference")
             embeddings, paths = run_inference(
@@ -154,7 +152,6 @@ class gallery:
             self.gallery_embeddings = embeddings
 
         if gallery == False:
-
             # print("HOCUS POICUS")
 
             ### Inference
@@ -178,7 +175,6 @@ class gallery:
             self.query_embeddings = embeddings
 
     def initialise(self, boxes, frames):
-
         """
         Function initialises the gallery infomation
         """
@@ -194,7 +190,6 @@ class gallery:
 
             # print(significant)
             for detection in range(len(significant.global_id)):
-
                 detection_im = frames[cam][
                     significant.loc[detection, "y_1"]
                     .astype(int) : (
@@ -271,7 +266,6 @@ class gallery:
         self.embed_from_directory(gallery=True)
 
     def save_images(self, boxes, frames):
-
         """
         Save images to become a query set everntually. ALL images are saved by concatenating time on.
         """
@@ -283,7 +277,6 @@ class gallery:
 
             # print(significant)
             for detection in range(len(significant.global_id)):
-
                 detection_im = frames[cam][
                     significant.loc[detection, "y_1"]
                     .astype(int) : (
@@ -471,14 +464,14 @@ class gallery:
 
         # two things need to happen 1) The index needs to be added (or resivour sampled) for an addition to the gallery data. Also, we then need to append the detection to the gallery_embeddings, the gallery_global_ids and the gallery image paths.
 
-        # Also, we need to go find all the query images that did NOT have a match meeting the threshold and then subsequently add them to the gallery_embeddings, the gallery_global_ids and the gallery_image paths with their original global_ids which were either supplied by the tracker (ocsort) or by the nearest neighbour in terms of location."""
+        # Also, we need to go find all the query images that did NOT have a match meeting the threshold and then subsequently add them to the gallery_embeddings, the gallery_global_ids and the gallery_image paths with their original global_ids which were either supplied by the tracker (ocsort) or by the nearest neighbour in terms of location.
+        """
         list_length = 5
         # print(self.matched)
         # exit()
 
         # these are for all the nice matches.
         for key in list(self.matched.keys()):
-
             query_image_path = key
 
             # query_image_path = self.matched[key]["paths"]
@@ -486,7 +479,6 @@ class gallery:
 
             # if the gloabl_id already exists, but is not full yet:
             if len(self.connecting_dict[master_global_id]["indices"]) < list_length:
-
                 # we immediately add the embeddings, the global_ids, and the gallery_image_paths
 
                 # matched global_id
@@ -527,7 +519,6 @@ class gallery:
                 # print(replace_boolean, position)
 
                 if replace_boolean == True:
-
                     # print("yes entered")
                     # the resivour sampling is successful, so we need to replace the embedding as well as the image path:)
                     index = self.connecting_dict[master_global_id]["indices"][position]
@@ -594,7 +585,6 @@ class gallery:
         while True:
             # if there is some info passed from the main script
             if not arg_queue.empty():
-
                 time1 = time.time()
                 (
                     frame_id,
@@ -625,7 +615,6 @@ class gallery:
                     que.put(1)
 
                 if (frame_id % find_similar_interval == 0) and (frame_id > 0):
-
                     print("Started the finder")
 
                     # run the similarity function
@@ -700,12 +689,10 @@ class gallery:
 
         # there is simething the reid model wants to give us (thus it has finished running):
         if not multithread_que.empty():
-
             # get whatever is in the que
             original = multithread_que.get()
             # 1 is the flag that is returned that shows that it is done with non-returning feedback
             if original != 1:
-
                 new = multithread_que.get()
                 # unique_global = multithread_que.get()
 
