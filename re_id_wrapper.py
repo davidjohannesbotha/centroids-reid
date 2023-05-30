@@ -179,9 +179,7 @@ class gallery:
         Function initialises the gallery infomation
         """
 
-        # self.connecting_df = pd.DataFrame(
-        #     columns=["global_id", "index", "1", "2", "3", "4", "5", "n"]
-        # )
+        print("initialising\n", boxes, "\n", frames)
 
         for cam in range(len(boxes)):
             significant = boxes[cam][
@@ -204,6 +202,9 @@ class gallery:
                     )
                     .astype(int),
                 ]
+
+                print("detecting", detection_im)
+                exit()
 
                 self.gallery_global_ids_list.append(
                     significant.loc[detection, "global_id"]
@@ -255,6 +256,9 @@ class gallery:
                         "image_paths": [path],
                         "n": 1,
                     }
+
+                cv.imshow("detection_im", detection_im)
+                cv.waitKey(0)
 
                 cv.imwrite(
                     path,
@@ -700,7 +704,7 @@ class gallery:
                 context_df["global_id"] = context_df["global_id"].replace(original, new)
 
                 # replace the global id mapping method in the local to global table
-                view.region.local_to_global["global_id"] = view.region.local_to_global[
+                view.local_to_global["global_id"] = view.local_to_global[
                     "global_id"
                 ].replace(original, new)
 
@@ -734,7 +738,7 @@ class gallery:
         return (
             arg_que,
             context_df["global_id"],
-            view.region.local_to_global["global_id"],
+            view.local_to_global["global_id"],
             # trajectories,
             done_flag,
         )
