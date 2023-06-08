@@ -179,7 +179,7 @@ class gallery:
         Function initialises the gallery infomation
         """
 
-        print("initialising\n", boxes, "\n", frames)
+        # print("initialising\n", boxes, "\n", frames)
 
         for cam in range(len(boxes)):
             significant = boxes[cam][
@@ -203,9 +203,6 @@ class gallery:
                     .astype(int),
                 ]
 
-                print("detecting", detection_im)
-                exit()
-
                 self.gallery_global_ids_list.append(
                     significant.loc[detection, "global_id"]
                 )
@@ -220,18 +217,6 @@ class gallery:
                     + ".jpg"
                 )
                 self.gallery_image_paths_list.append(path)
-
-                if (
-                    significant.loc[detection, "cam_id"] == 2
-                    and significant.loc[detection, "local_id"] == 13
-                ):
-                    print("\n\n THIS IS THE PATH FOR 13:", path)
-
-                if (
-                    significant.loc[detection, "cam_id"] == 2
-                    and significant.loc[detection, "local_id"] == 86
-                ):
-                    print("\n\n THIS IS THE PATH FOR 86:", path)
 
                 try:
                     indexes_of_id = self.connecting_dict[
@@ -257,8 +242,8 @@ class gallery:
                         "n": 1,
                     }
 
-                cv.imshow("detection_im", detection_im)
-                cv.waitKey(0)
+                # cv.imshow("detection_im", detection_im)
+                # cv.waitKey(0)
 
                 cv.imwrite(
                     path,
